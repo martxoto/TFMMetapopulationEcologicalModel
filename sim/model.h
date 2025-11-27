@@ -14,6 +14,7 @@
 
 using namespace std;
 
+constexpr double m = 0.5;
 constexpr double r =  2.0;
 constexpr int Kp = 100;
 constexpr int Kv = 1000;

@@ -25,24 +25,32 @@ bool insectExistsInPatch(int insectID, int site, int plantCount, const vector<ve
 void evaluaFp(double p, const vector<vector<double>>& v, double &fp, const vector<vector<vector<double>>>& gamma, int pindex, int site, int insectCount)
 {
     fp = 0.0;
-    double sum = 0.0;
-    for( int j=0 ; j<insectCount ; j++)
-        sum += (gamma[site][pindex][j]*v[j][site]) / (1.0 + (ha*gamma[site][pindex][j]*v[j][site])); 
-    fp = (r*p*(1.0-(p/Kp))) + (p*sum); 
+    double sumden = 0.0;
+    
+    for(int i=0 ; i<insectCount ; i++)
+        sumden += gamma[site][pindex][i] * v[i][site];
+        
+    double sum = sumden / (1.0 + (ha*sumden)); 
+        
+    fp = p*(-m-((r*p)/Kp) + sum); 
     return;
 }
 
 void evaluaFv(const vector<vector<double>>& p, const vector<vector<double>>& v, double &fv, const vector<vector<vector<double>>>& gamma, int vindex, int site, int plantCount, int numPatch)
 {
     fv = 0.0;
-    double sum = 0.0;
-    double sumD = 0.0;
-    for( int i=0 ; i<plantCount ; i++)
-        sum += (gamma[site][i][vindex]*p[i][site]*v[vindex][site]) / (1.0 + (ha*gamma[site][i][vindex]*p[i][site]));
+    double sum = 0.0, sumD = 0.0, sumden = 0.0;
+    
+    for(int i=0 ; i<plantCount ; i++)
+        sumden += gamma[site][i][vindex] * p[i][site];
+ 
+    sum +=  sumden / (1.0 + (ha*sumden));
+        
     for( int i=0 ; i<numPatch ; i++)
         if ( i!=site)
             sumD += (v[vindex][i]-v[vindex][site]); 
-    fv = (-1.0*d*v[vindex][site]*(1.0+(v[vindex][site]/Kv))) + sum + (D*sumD); 
+            
+    fv = v[vindex][site]*(-1.0*d*(1.0+(v[vindex][site]/Kv)) + sum) + (D*sumD); 
     return;
 }
 
@@ -211,9 +219,9 @@ void findSteadyState(double t, vector<vector<double>>& p, vector<vector<double>>
 {
     //Stationary state detection
     double max_delta = 1.0;
-    const double TOLERANCE = 1e-9;
+    const double TOLERANCE = 1e-6;
     int iter_count = 0;
-    int max_iter = 100000;
+    int max_iter = 1000000;
     
     vector<vector<double>> p_prev(plantCount, vector<double>(numPatch));
     vector<vector<double>> v_prev(insectCount, vector<double>(numPatch));

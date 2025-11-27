@@ -19,7 +19,7 @@ int main(void)
     
     vector<vector<vector<double>>> gamma;
     
-    loadGamma("interactions_Haddon_Hill_patches.txt", plantIndex,insectIndex,plantCount,insectCount,numPatch,gamma);
+    loadGamma("interactions_Penhale_Sands_patches.txt", plantIndex,insectIndex,plantCount,insectCount,numPatch,gamma);
     
     cout << "Number of plants: " << plantCount << endl;
     cout << "Number of insects: " << insectCount << endl;
