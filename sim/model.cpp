@@ -30,13 +30,15 @@ void evaluaFp(double p, const vector<vector<double>>& v, double &fp, const vecto
     for(int i=0 ; i<insectCount ; i++)
         sumden += gamma[site][pindex][i] * v[i][site];
         
+    sumden *= alpha;
+    
     double sum = sumden / (1.0 + (ha*sumden)); 
         
     fp = p*(-m-((r*p)/Kp) + sum); 
     return;
 }
 
-void evaluaFv(const vector<vector<double>>& p, const vector<vector<double>>& v, double &fv, const vector<vector<vector<double>>>& gamma, int vindex, int site, int plantCount, int numPatch)
+void evaluaFv(const vector<vector<double>>& p, const vector<vector<double>>& v, double &fv, const vector<vector<vector<double>>>& gamma, int vindex, int site, int plantCount, int numPatch, double D)
 {
     fv = 0.0;
     double sum = 0.0, sumD = 0.0, sumden = 0.0;
@@ -44,6 +46,8 @@ void evaluaFv(const vector<vector<double>>& p, const vector<vector<double>>& v, 
     for(int i=0 ; i<plantCount ; i++)
         sumden += gamma[site][i][vindex] * p[i][site];
  
+    sumden *= alpha;
+    
     sum +=  sumden / (1.0 + (ha*sumden));
         
     for( int i=0 ; i<numPatch ; i++)
@@ -54,7 +58,7 @@ void evaluaFv(const vector<vector<double>>& p, const vector<vector<double>>& v, 
     return;
 }
 
-void rungekutta(vector<vector<double>>& p, vector<vector<double>>& v, const vector<vector<vector<double>>>& gamma, double h, int plantCount, int insectCount, int numPatch)
+void rungekutta(vector<vector<double>>& p, vector<vector<double>>& v, const vector<vector<vector<double>>>& gamma, double h, int plantCount, int insectCount, int numPatch, double D)
 {   
     double sumav, sumap;
     
@@ -89,7 +93,7 @@ void rungekutta(vector<vector<double>>& p, vector<vector<double>>& v, const vect
         for(int site=0 ; site<numPatch ; site++)
         {
             k1v[i][site] = 0.0;
-            evaluaFv(p,v,fv[i][site],gamma,i,site,plantCount,numPatch);
+            evaluaFv(p,v,fv[i][site],gamma,i,site,plantCount,numPatch,D);
             k1v[i][site] = h*fv[i][site];
         }
     }
@@ -127,7 +131,7 @@ void rungekutta(vector<vector<double>>& p, vector<vector<double>>& v, const vect
         for(int site=0 ; site<numPatch ; site++)
         {
             k2v[i][site] = 0.0;
-            evaluaFv(auxp,auxv,fv[i][site],gamma,i,site,plantCount,numPatch);
+            evaluaFv(auxp,auxv,fv[i][site],gamma,i,site,plantCount,numPatch,D);
             k2v[i][site] = h*fv[i][site];
         }
     }
@@ -165,7 +169,7 @@ void rungekutta(vector<vector<double>>& p, vector<vector<double>>& v, const vect
         for(int site=0 ; site<numPatch ; site++)
         {
             k3v[i][site] = 0.0;
-            evaluaFv(auxp,auxv,fv[i][site],gamma,i,site,plantCount,numPatch);
+            evaluaFv(auxp,auxv,fv[i][site],gamma,i,site,plantCount,numPatch,D);
             k3v[i][site] = h*fv[i][site];
         }
     }
@@ -205,7 +209,7 @@ void rungekutta(vector<vector<double>>& p, vector<vector<double>>& v, const vect
         for(int site=0 ; site<numPatch ; site++)
         {
             k4v[i][site] = 0.0;
-            evaluaFv(auxp,auxv,fv[i][site],gamma,i,site,plantCount,numPatch);
+            evaluaFv(auxp,auxv,fv[i][site],gamma,i,site,plantCount,numPatch,D);
             k4v[i][site] = h*fv[i][site];
             sumav=0.0;
             sumav=k1v[i][site]+(2*k2v[i][site])+(2*k3v[i][site])+k4v[i][site];
@@ -215,7 +219,7 @@ void rungekutta(vector<vector<double>>& p, vector<vector<double>>& v, const vect
     return;
 }
 
-void findSteadyState(double t, vector<vector<double>>& p, vector<vector<double>>& v, ofstream& fichp, ofstream& fichv, int plantCount, int insectCount, int numPatch,  const vector<vector<vector<double>>>& gamma, double h)
+void findSteadyState(double t, vector<vector<double>>& p, vector<vector<double>>& v, ofstream& fichp, ofstream& fichv, int plantCount, int insectCount, int numPatch,  const vector<vector<vector<double>>>& gamma, double h, double D)
 {
     //Stationary state detection
     double max_delta = 1.0;
@@ -245,7 +249,7 @@ void findSteadyState(double t, vector<vector<double>>& p, vector<vector<double>>
         p_prev = p;
         v_prev = v;
 
-        rungekutta(p,v,gamma,h,plantCount,insectCount,numPatch); 
+        rungekutta(p,v,gamma,h,plantCount,insectCount,numPatch,D); 
         t+=h;   
         iter_count++;
         
@@ -343,7 +347,7 @@ void loadGamma(const string &filename, map<string, int>& plantIndex, map<string,
     return;
 }
 
-void runExtinctionExperiment(const vector<vector<double>>& p, const vector<vector<double>>& v, const vector<vector<vector<double>>>& gamma, double h, int plantCount, int insectCount, int numPatch)
+void runExtinctionExperiment(const vector<vector<double>>& p, const vector<vector<double>>& v, const vector<vector<vector<double>>>& gamma, double h, int plantCount, int insectCount, int numPatch, double D)
 {
     cout << "\n---Initializing extinction experiment ---" << endl;
     
@@ -376,17 +380,52 @@ void runExtinctionExperiment(const vector<vector<double>>& p, const vector<vecto
     
     double tDummy = 0.0;
     
+    int initialSurvPlants = 0;
+    int initialSurvInsects = 0;
+    
+    for(int i=0; i<plantCount; ++i) 
+    {
+        double total = 0.0;
+        for(int s=0; s<numPatch; ++s) 
+            total += p[i][s];
+        if(total > viability) 
+            initialSurvPlants++;
+    }
+    
+    for(int i=0; i<insectCount; ++i) 
+    {
+        double total = 0.0;
+        for(int s=0; s<numPatch; ++s) 
+            total += v[i][s];
+        if(total > viability) 
+            initialSurvInsects++;
+    }
+    
+    int totalInitialSpecies = initialSurvPlants + initialSurvInsects;
+    
+    cout << "Especies Iniciales Vivas: " << totalInitialSpecies << " (Plantas: " << initialSurvPlants << ", Insectos: " << initialSurvInsects << ")" << endl;
+    
+    double sumRobustness = 0.0;
+    int kEffective = 0, steps = 0;
+    
     //Experiment
     for(int k=0; k<=plantCount ; k++)
     {
         if (k>0)
         {
             int plantToRemove = plantRanking[k-1].second;
+            double currentAbundance = 0.0;
+            for(int site=0 ; site<numPatch ; site++)
+                currentAbundance += pCurrent[plantToRemove][site];
             
+            if (currentAbundance <= viability)
+                continue;
+                
             for(int site=0 ; site<numPatch ; site++)
                 pCurrent[plantToRemove][site] = 0.0;
+            kEffective++;
             
-            findSteadyState(tDummy, pCurrent, vCurrent, dummy_p, dummy_v, plantCount, insectCount, numPatch, gamma, h);
+            findSteadyState(tDummy, pCurrent, vCurrent, dummy_p, dummy_v, plantCount, insectCount, numPatch, gamma, h,D);
         }
         
         //Metrics
@@ -451,13 +490,189 @@ void runExtinctionExperiment(const vector<vector<double>>& p, const vector<vecto
             }
         }
         
-        double robustness = (double)(survPlants + survInsects) / (plantCount + insectCount);
+        double robustness = (double)(survPlants + survInsects) / (1.0*totalInitialSpecies);
         double pollinationService = insectBiomass;
         double giniP = 1.0 - sum2p;
         double giniV = 1.0 - sum2v;
         
-        experimentFile << k << " " << fixed << setprecision(6) << robustness << " " << survPlants << " " << survInsects << " " << pollinationService << " " << giniP << " " << giniV << endl;
+        sumRobustness += robustness;
+        steps++;
+        experimentFile << kEffective << " " << fixed << setprecision(6) << robustness << " " << survPlants << " " << survInsects << " " << pollinationService << " " << giniP << " " << giniV << endl;
     }
+    
+    double Rint = sumRobustness / steps;
+    cout << " R (robustness) = " << Rint << endl;
+    
+    ofstream rFile("robustnessD.txt");
+    rFile << Rint << endl;
+    rFile.close();
+    
+    experimentFile.close();
+    dummy_p.close();
+    dummy_v.close();
+    
+    cout << "---Extinction experiment complete ---" << endl;
+    
+    return;
+}
+
+void runRandomExtinctionExperiment(const vector<vector<double>>& p, const vector<vector<double>>& v, const vector<vector<vector<double>>>& gamma, double h, int plantCount, int insectCount, int numPatch, double D)
+{
+    cout << "\n---Initializing random extinction experiment ---" << endl;
+    
+    //Plant ranking
+    vector<int> plantIndices(plantCount);
+    
+    for(int i=0; i<plantCount ; i++)
+        plantIndices[i] = i;
+    
+    auto rng = default_random_engine(42);
+    shuffle(plantIndices.begin(), plantIndices.end(), rng);
+
+    
+    
+    //Preparation
+    ofstream experimentFile("resultsRandom.txt");
+    
+    experimentFile << "# Num_Extinctions Robustness_Ratio Surv_Plants Surv_Insects Pollination_Service Gini_Plants Gini_Insects" << endl;
+    
+    ofstream dummy_p("/dev/null");
+    ofstream dummy_v("/dev/null");
+    
+    vector<vector<double>> pCurrent = p;
+    vector<vector<double>> vCurrent = v;
+    
+    double tDummy = 0.0;
+    
+    int initialSurvPlants = 0;
+    int initialSurvInsects = 0;
+    
+    for(int i=0; i<plantCount; ++i) 
+    {
+        double total = 0.0;
+        for(int s=0; s<numPatch; ++s) 
+            total += p[i][s];
+        if(total > viability) 
+            initialSurvPlants++;
+    }
+    
+    for(int i=0; i<insectCount; ++i) 
+    {
+        double total = 0.0;
+        for(int s=0; s<numPatch; ++s) 
+            total += v[i][s];
+        if(total > viability) 
+            initialSurvInsects++;
+    }
+    
+    int totalInitialSpecies = initialSurvPlants + initialSurvInsects;
+    
+    cout << "Especies Iniciales Vivas: " << totalInitialSpecies << " (Plantas: " << initialSurvPlants << ", Insectos: " << initialSurvInsects << ")" << endl;
+    
+    double sumRobustness = 0.0;
+    int kEffective = 0, steps = 0;
+    
+    //Experiment
+    for(int k=0; k<=plantCount ; k++)
+    {
+        if (k>0)
+        {
+            int plantToRemove = plantIndices[k-1];
+            double currentAbundance = 0.0;
+            
+            for(int site=0 ; site<numPatch ; site++)
+                currentAbundance += pCurrent[plantToRemove][site];
+            
+            if (currentAbundance <= viability)
+                continue;
+                            
+            for(int site=0 ; site<numPatch ; site++)
+                pCurrent[plantToRemove][site] = 0.0;
+                
+            kEffective++;
+            
+            findSteadyState(tDummy, pCurrent, vCurrent, dummy_p, dummy_v, plantCount, insectCount, numPatch, gamma, h, D);
+        }
+        
+        //Metrics
+        int survPlants = 0;
+        int survInsects = 0;
+        double plantBiomass = 0.0, insectBiomass = 0.0;
+        double sum2p = 0.0, sum2v = 0.0;
+        
+        for (int i=0 ; i<plantCount ; i++)
+        {
+            double total = 0.0;
+            for(int site=0 ; site<numPatch ; site++)
+                total += pCurrent[i][site];
+            
+            if(total > viability) 
+            {
+                survPlants++;
+                plantBiomass += total;
+            }            
+        }
+        
+        if (plantBiomass > 0)
+        {
+            for(int i=0 ; i<plantCount ; i++)
+            {
+                double total = 0.0;
+                for(int site=0 ; site<numPatch ; site++)
+                    total += pCurrent[i][site];
+                if(total > viability)
+                {
+                    double prob = total / plantBiomass;
+                    sum2p += (prob * prob);
+                }
+            }
+        }
+        
+        for (int i=0 ; i<insectCount ; i++)
+        {
+            double total = 0.0;
+            for(int site=0 ; site<numPatch ; site++)
+                total += vCurrent[i][site];
+            
+            if(total > viability) 
+            {
+                survInsects++;
+                insectBiomass += total;  
+            }          
+        }
+        
+        if (insectBiomass > 0)
+        {
+            for(int i=0 ; i<insectCount ; i++)
+            {
+                double total = 0.0;
+                for(int site=0 ; site<numPatch ; site++)
+                    total += vCurrent[i][site];
+                if(total > viability)
+                {
+                    double prob = total / insectBiomass;
+                    sum2v += (prob * prob);
+                }
+            }
+        }
+        
+        double robustness = (double)(survPlants + survInsects) / (totalInitialSpecies*1.0);
+        double pollinationService = insectBiomass;
+        double giniP = 1.0 - sum2p;
+        double giniV = 1.0 - sum2v;
+        
+        sumRobustness += robustness;
+        steps++;
+        
+        experimentFile << kEffective << " " << fixed << setprecision(6) << robustness << " " << survPlants << " " << survInsects << " " << pollinationService << " " << giniP << " " << giniV << endl;
+    }
+    
+    double Rint = sumRobustness / steps;
+    cout << " R (robustness) = " << Rint << endl;
+    
+    ofstream rFile("robustnessD.txt");
+    rFile << Rint << endl;
+    rFile.close();
     
     experimentFile.close();
     dummy_p.close();

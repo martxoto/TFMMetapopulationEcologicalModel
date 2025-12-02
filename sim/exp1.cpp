@@ -4,11 +4,14 @@
 
 int main(void)
 {
-    double h, t;
+    double h, t, D;
     ofstream fichp, fichv;
     
     cout << "Introduce the step: " << endl;
     cin >> h;
+
+    cout << "Introduce Dispersal (D): " << endl;
+    cin >> D;
     
     //Gamma
     
@@ -19,7 +22,7 @@ int main(void)
     
     vector<vector<vector<double>>> gamma;
     
-    loadGamma("interactions_Penhale_Sands_patches.txt", plantIndex,insectIndex,plantCount,insectCount,numPatch,gamma);
+    loadGamma("interactions_Dolebury_Warren_patches.txt", plantIndex,insectIndex,plantCount,insectCount,numPatch,gamma);
     
     cout << "Number of plants: " << plantCount << endl;
     cout << "Number of insects: " << insectCount << endl;
@@ -65,9 +68,9 @@ int main(void)
 
     t = 0.0;
     
-    findSteadyState(t, p, v, fichp, fichv, plantCount, insectCount, numPatch, gamma, h);
+    findSteadyState(t, p, v, fichp, fichv, plantCount, insectCount, numPatch, gamma, h, D);
     
-    runExtinctionExperiment(p,v,gamma,h,plantCount,insectCount,numPatch);
+    runExtinctionExperiment(p,v,gamma,h,plantCount,insectCount,numPatch, D);
     
     fichp.close();
     fichv.close();

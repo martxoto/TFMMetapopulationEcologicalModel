@@ -6,7 +6,7 @@ import networkx as nx
 filepath = 'all_web_interactions.csv'
 df = pd.read_csv(filepath)
 
-site = 'Haddon_Hill'
+site = 'Dolebury_Warren'
 df_site = df[(df['Site'] == site) & (df['Conflict'].isna())]
 
 habitats = df_site['Habitat'].unique()
